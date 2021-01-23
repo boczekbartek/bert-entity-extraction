@@ -7,50 +7,44 @@ import config
 import dataset
 import engine
 from model import EntityModel
-
+from train import process_data
+from tqdm import tqdm
 
 if __name__ == "__main__":
 
     meta_data = joblib.load("meta.bin")
-    enc_pos = meta_data["enc_pos"]
     enc_tag = meta_data["enc_tag"]
 
-    num_pos = len(list(enc_pos.classes_))
     num_tag = len(list(enc_tag.classes_))
 
-    sentence = """
-    abhishek is going to india
-    """
-    tokenized_sentence = config.TOKENIZER.encode(sentence)
-
-    sentence = sentence.split()
-    print(sentence)
-    print(tokenized_sentence)
-
-    test_dataset = dataset.EntityDataset(
-        texts=[sentence], 
-        pos=[[0] * len(sentence)], 
-        tags=[[0] * len(sentence)]
-    )
-
     device = torch.device("cuda")
-    model = EntityModel(num_tag=num_tag, num_pos=num_pos)
+    model = EntityModel(num_tag=num_tag)
     model.load_state_dict(torch.load(config.MODEL_PATH))
     model.to(device)
+    test_sentences, test_tag, enc_tag = process_data(config.DEV_FILE, enc_tag=enc_tag)
+    valid_dataset = dataset.EntityDataset(texts=test_sentences, tags=test_tag)
 
+    valid_data_loader = torch.utils.data.DataLoader(
+        valid_dataset, batch_size=1, num_workers=1
+    )
+    results = []
     with torch.no_grad():
-        data = test_dataset[0]
-        for k, v in data.items():
-            data[k] = v.to(device).unsqueeze(0)
-        tag, pos, _ = model(**data)
+        for i, data in enumerate(valid_data_loader):
+            for k, v in data.items():
+                data[k] = v.to(device)
+            sentence = test_sentences[i]
+            tokenized_sentence = config.TOKENIZER.encode(sentence)
 
-        print(
-            enc_tag.inverse_transform(
+            tag, _ = model(**data)
+            print(f"{i} | {sentence}")
+            print(f"{i} | {tokenized_sentence}")
+            entities = enc_tag.inverse_transform(
                 tag.argmax(2).cpu().numpy().reshape(-1)
-            )[:len(tokenized_sentence)]
-        )
-        print(
-            enc_pos.inverse_transform(
-                pos.argmax(2).cpu().numpy().reshape(-1)
-            )[:len(tokenized_sentence)]
-        )
+            )[: len(tokenized_sentence)][1:-1]
+            print(f"{i} | {entities}")
+            results.append(entities)
+    import pickle as pkl
+
+    with open("results.pkl", "wb") as f:
+        pkl.dump(results, f)
+
