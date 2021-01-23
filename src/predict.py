@@ -9,6 +9,7 @@ import engine
 from model import EntityModel
 from train import process_data
 from tqdm import tqdm
+from sklearn.metrics import classification_report
 
 if __name__ == "__main__":
 
@@ -27,24 +28,22 @@ if __name__ == "__main__":
     valid_data_loader = torch.utils.data.DataLoader(
         valid_dataset, batch_size=1, num_workers=1
     )
-    results = []
+    true_tags = []
+    pred_tags = []
     with torch.no_grad():
         for i, data in enumerate(valid_data_loader):
             for k, v in data.items():
                 data[k] = v.to(device)
             sentence = test_sentences[i]
             tokenized_sentence = config.TOKENIZER.encode(sentence)
-
-            tag, _ = model(**data)
-            print(f"{i} | {sentence}")
-            print(f"{i} | {tokenized_sentence}")
-            entities = enc_tag.inverse_transform(
-                tag.argmax(2).cpu().numpy().reshape(-1)
-            )[: len(tokenized_sentence)][1:-1]
-            print(f"{i} | {entities}")
-            results.append(entities)
-    import pickle as pkl
-
-    with open("results.pkl", "wb") as f:
-        pkl.dump(results, f)
-
+            true_sent_tags = data['target_tag'].cpu().numpy().reshape(-1)[: len(tokenized_sentence)][1:-1]
+            print(f'---------------------{i}--------------------------')
+            print(config.TOKENIZER.convert_ids_to_tokens(tokenized_sentence))
+            print(enc_tag.inverse_transform(true_sent_tags))
+            tag_logits, _ = model(**data)            
+            pred_sent_tags = tag_logits.argmax(2).cpu().numpy().reshape(-1)[: len(tokenized_sentence)][1:-1]
+            print(enc_tag.inverse_transform(pred_sent_tags))
+            true_tags.extend(true_sent_tags)
+            pred_tags.extend(pred_sent_tags)
+    
+    print(classification_report(true_tags, pred_tags,target_names=enc_tag.classes_))
