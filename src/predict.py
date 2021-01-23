@@ -38,6 +38,7 @@ if __name__ == "__main__":
             tokenized_sentence = config.TOKENIZER.encode(sentence)
             true_sent_tags = data['target_tag'].cpu().numpy().reshape(-1)[: len(tokenized_sentence)][1:-1]
             print(f'---------------------{i}--------------------------')
+            print(sentence)
             print(config.TOKENIZER.convert_ids_to_tokens(tokenized_sentence))
             print(enc_tag.inverse_transform(true_sent_tags))
             tag_logits, _ = model(**data)            
