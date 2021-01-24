@@ -18,19 +18,22 @@ class EntityDataset:
 
         ids = []
         target_tag = []
-
+        token_ids = []
+        
         for i, s in enumerate(text):
             inputs = config.TOKENIZER.encode(s, add_special_tokens=False)
-            # abhishek: ab ##hi ##sh ##ek
             input_len = len(inputs)
             ids.extend(inputs)
             target_tag.extend([tags[i]] * input_len)
+            token_ids.extend([i]*input_len)
 
         ids = ids[: config.MAX_LEN - 2]
         target_tag = target_tag[: config.MAX_LEN - 2]
+        token_ids = token_ids[: config.MAX_LEN - 2]
 
         ids = [config.TOKENIZER.vocab['[CLS]']] + ids + [config.TOKENIZER.vocab['[SEP]']]
         target_tag = [0] + target_tag + [0]
+        token_ids = [-1] + token_ids + [-1]
 
         mask = [1] * len(ids)
         token_type_ids = [0] * len(ids)
@@ -41,10 +44,13 @@ class EntityDataset:
         mask = mask + ([0] * padding_len)
         token_type_ids = token_type_ids + ([0] * padding_len)
         target_tag = target_tag + ([0] * padding_len)
+        token_ids = token_ids + ([-1] * padding_len)
 
-        return {
+        ret = {
             "ids": torch.tensor(ids, dtype=torch.long),
             "mask": torch.tensor(mask, dtype=torch.long),
             "token_type_ids": torch.tensor(token_type_ids, dtype=torch.long),
             "target_tag": torch.tensor(target_tag, dtype=torch.long),
+            "token_ids": torch.tensor(token_ids, dtype=torch.long)
         }
+        return ret

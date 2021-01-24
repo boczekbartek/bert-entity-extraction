@@ -40,8 +40,8 @@ if __name__ == "__main__":
     test_sentences, test_tag, enc_tag = process_data(config.DEV_FILE)
 
     meta_data = {"enc_tag": enc_tag}
-
-    joblib.dump(meta_data, "meta.bin")
+    print('Saving meta to', config.META_PATH)
+    joblib.dump(meta_data, config.META_PATH)
 
     num_tag = len(list(enc_tag.classes_))
 
